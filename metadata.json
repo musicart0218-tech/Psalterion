@@ -1,0 +1,6 @@
+{
+  "name": "Legends of Psalterion",
+  "description": "An immersive multiplayer fantasy RPG browser game built with Phaser 3, React, Express, Socket.IO, and a GM Admin Panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

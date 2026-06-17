@@ -1,0 +1,166 @@
+// prisma/schema.prisma
+// Prisma schema for Legends of Psalterion browser game, matching a PostgreSQL database.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Existing Core Enums
+enum PlayerClass {
+  WARRIOR
+  MAGE
+  ARCHER
+  VOID_MONARCH
+}
+
+// Existing Core Models
+model Player {
+  id        String      @id @default(uuid())
+  name      String      @unique
+  class     PlayerClass @default(WARRIOR)
+  level     Int         @default(1)
+  xp        Int         @default(0)
+  gold      Int         @default(50)
+  
+  // Player stats
+  hp        Int         @default(100)
+  maxHp     Int         @default(100)
+  mp        Int         @default(50)
+  maxMp     Int         @default(50)
+  
+  // Dynamic coordinates on the main map
+  posX      Float       @default(200.0)
+  posY      Float       @default(200.0)
+  
+  // Game inventory items (JSON format representing gear and consumables)
+  inventory Json        @default("[]")
+  
+  // Tracking
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  lastLogin DateTime    @default(now())
+
+  // Relationships
+  adminActions AdminAction[]
+}
+
+model AdminAction {
+  id        String   @id @default(uuid())
+  action    String   // e.g. "BAN_PLAYER", "GIVE_GOLD", "KICK_PLAYER"
+  details   String
+  targetId  String?
+  target    Player?  @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}
+
+model ServerSetting {
+  key       String   @id
+  value     String   // Value stored as string or serialized JSON
+  updatedAt DateTime @updatedAt
+}
+
+// New Core Enums & Schema Models
+enum ClassType {
+  GUARDIAN
+  ARCANIST
+  SHADOWBLADE
+  RANGER
+  SPIRITCALLER
+  CHRONOMANCER
+  VOID_MONARCH
+}
+
+enum RarityTier {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+  MYTHIC
+  PSALTERFORGED
+}
+
+model User {
+  id           String      @id @default(uuid())
+  username     String      @unique
+  email        String      @unique
+  passwordHash String
+  isGm         Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  characters   Character[]
+
+  @@map("users")
+}
+
+model Character {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String    @unique
+  class        ClassType @default(GUARDIAN)
+  level        Int       @default(1)
+  experience   BigInt    @default(0)
+  gold         Int       @default(100)
+  
+  // Positional State Logging for Reconnects
+  currentMap   String    @default("asterhaven")
+  positionX    Float     @default(400.0)
+  positionY    Float     @default(300.0)
+
+  // Combat Core Attributes
+  currentHp    Int       @default(100)
+  maxHp        Int       @default(100)
+  currentMana  Int       @default(50)
+  maxMana      Int       @default(50)
+
+  // Relationships
+  inventory    InventoryItem[]
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("characters")
+}
+
+model CustomWeapon {
+  id           String      @id @default(uuid())
+  name         String
+  description  String?
+  weaponType   String      @default("Sword")
+  rarity       RarityTier  @default(COMMON)
+  element      String      @default("Physical")
+  minDamage    Int         @default(10)
+  maxDamage    Int         @default(15)
+  critChance   Float       @default(0.05)
+  passiveHook  String?     // Stores event flags (e.g., 'void_burst', 'lifesteal')
+  
+  // Custom Visual Modifiers
+  bladeModel   String      @default("default_blade")
+  glowColor    String      @default("#ffffff")
+  particleType String     @default("none")
+  
+  createdBy    String     // Log of GM username who forged it
+  createdAt    DateTime   @default(now())
+  instances    InventoryItem[]
+
+  @@map("custom_weapons")
+}
+
+model InventoryItem {
+  id             String       @id @default(uuid())
+  characterId    String
+  character      Character    @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  customWeaponId String?
+  customWeapon   CustomWeapon? @relation(fields: [customWeaponId], references: [id], onDelete: SetNull)
+  isEquipped     Boolean      @default(false)
+  slotIndex      Int
+  acquiredAt     DateTime     @default(now())
+
+  @@map("inventory_items")
+}
